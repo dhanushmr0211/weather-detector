@@ -43,7 +43,7 @@ const EmotionEngine = {
                 },
                 outputFaceBlendshapes: true,
                 runningMode: "VIDEO",
-                numFaces: 1
+                numFaces: 2 // Enable 2-face tracking
             });
 
             if (status) status.innerText = " neural link established. activating camera...";
@@ -67,11 +67,11 @@ const EmotionEngine = {
                 const btn = document.getElementById('start-btn');
                 if (btn) {
                     btn.disabled = false;
-                    btn.innerText = "START GAME";
+                    btn.innerText = "START GAME (2P)";
                 }
 
                 const status = document.getElementById('camera-status');
-                if (status) status.innerText = "Camera Active. Scanning... ";
+                if (status) status.innerText = "Camera Active. Tracking 2 Subjects... ";
             })
             .catch(err => {
                 console.error("Camera Error:", err);
@@ -87,7 +87,32 @@ const EmotionEngine = {
             if (this.faceLandmarker) {
                 const results = this.faceLandmarker.detectForVideo(this.video, performance.now());
                 if (results.faceBlendshapes && results.faceBlendshapes.length > 0) {
-                    this.processBlendshapes(results.faceBlendshapes[0].categories);
+                    // Sort faces by x-coordinate to consistently assign P1 (Left) and P2 (Right)
+                    // We need faceLandmarks to get coordinates, but blendshapes don't have coords directly.
+                    // IMPORTANT: detectForVideo returns faceLandmarks AND faceBlendshapes indices match.
+
+                    const faces = [];
+                    for (let i = 0; i < results.faceBlendshapes.length; i++) {
+                        // Calculate average X from landmarks if available, else use index (fallback)
+                        let avgX = 0;
+                        if (results.faceLandmarks && results.faceLandmarks[i]) {
+                            avgX = results.faceLandmarks[i][0].x; // Just take nose tip or first point
+                        }
+                        faces.push({
+                            index: i,
+                            x: avgX,
+                            shapes: results.faceBlendshapes[i].categories
+                        });
+                    }
+
+                    // Sort: Leftmost (smaller x) is Player 1 (Left Side of Screen). 
+                    // Note: Webcam is mirrored usually. If mirrored, Left on screen is Right in world.
+                    // Let's assume standard mirror view: Left on screen = P1.
+                    faces.sort((a, b) => a.x - b.x);
+
+                    faces.forEach((face, playerIndex) => {
+                        this.processBlendshapes(face.shapes, playerIndex);
+                    });
                 }
             }
         }
@@ -95,7 +120,7 @@ const EmotionEngine = {
         window.requestAnimationFrame(() => this.loop());
     },
 
-    processBlendshapes(blendshapes) {
+    processBlendshapes(blendshapes, playerIndex) {
         // Convert array of {categoryName, score} to a map for easy lookup
         const shapes = {};
         blendshapes.forEach(b => {
@@ -160,19 +185,19 @@ const EmotionEngine = {
         // If no strong emotion detected, stick to neutral
 
         if (dominant !== 'neutral') {
-            // console.log(`Detected: ${dominant} (${maxScore.toFixed(2)})`);
-            this.triggerEmotionEffect(dominant, maxScore);
+            this.triggerEmotionEffect(dominant, maxScore, playerIndex);
         } else {
-            // Optional: reset to neutral emoji
-            // Game?.setEmoji('😐');
-            this.triggerEmotionEffect('neutral', 0);
+            this.triggerEmotionEffect('neutral', 0, playerIndex);
         }
 
         // VISUAL DEBUG OVERLAY - REMOVED AS REQUESTED
-        const debugEl = document.getElementById('camera-status');
-        if (debugEl) {
-            // Just show dominant emotion clearly
-            debugEl.innerHTML = `<b>STATUS: ${dominant.toUpperCase()}</b>`;
+        // We might want to show P1/P2 status now? 
+        // Let's create a small status line for each.
+        // For now, removing the single status element update to avoid flicker conflict.
+
+        // Use a persistent status update if available
+        if (Game && Game.updatePlayerStatus) {
+            Game.updatePlayerStatus(playerIndex, dominant);
         }
     },
 

@@ -1,79 +1,87 @@
 const SanitySystem = {
-    currentSanity: 100,
+    // State for multiple players. 0 and 1.
+    pState: [
+        { sanity: 100, level: 0 },
+        { sanity: 100, level: 0 }
+    ],
     maxSanity: 100,
-    currentLevel: 0, // 0 = Sane
 
     init() {
-        this.currentSanity = 100;
-        this.currentLevel = 0;
-        this.updateUI();
+        this.pState = [
+            { sanity: 100, level: 0 },
+            { sanity: 100, level: 0 }
+        ];
+        this.updateUI(0);
+        this.updateUI(1);
         EffectsEngine.clearAll();
     },
 
-    reduceSanity(amount) {
-        this.currentSanity -= amount;
-        if (this.currentSanity < 0) this.currentSanity = 0;
+    reduceSanity(amount, playerId = 0) {
+        if (!this.pState[playerId]) return;
 
-        this.checkLevel();
-        this.updateUI();
+        this.pState[playerId].sanity -= amount;
+        if (this.pState[playerId].sanity < 0) this.pState[playerId].sanity = 0;
 
-        if (this.currentSanity <= 0) {
-            Game.gameOver();
+        this.checkLevel(playerId);
+        this.updateUI(playerId);
+
+        if (this.pState[playerId].sanity <= 0) {
+            Game.gameOver(playerId); // Pass loser ID
         }
     },
 
-    increaseSanity(amount) {
-        this.currentSanity += amount;
-        if (this.currentSanity > this.maxSanity) this.currentSanity = this.maxSanity;
+    increaseSanity(amount, playerId = 0) {
+        if (!this.pState[playerId]) return;
 
-        this.checkLevel();
-        this.updateUI();
+        this.pState[playerId].sanity += amount;
+        if (this.pState[playerId].sanity > this.maxSanity) this.pState[playerId].sanity = this.maxSanity;
+
+        this.checkLevel(playerId);
+        this.updateUI(playerId);
     },
 
-    checkLevel() {
+    checkLevel(playerId) {
+        let currentSanity = this.pState[playerId].sanity;
+        let pLevel = this.pState[playerId].level;
         let newLevel = 0;
-        // Stage 1: 100 -> 80
-        if (this.currentSanity <= 100) newLevel = 1;
-        // Wait, spec says 100 -> 80 is Stage 1. 
-        // Let's assume > 80 is Stage 1 (Stable but minor distortion if not perfect 100? or starts at 99?)
-        // Actually spec says "Stage 1 - Sanity 100 -> 80". So effectively always at least stage 1?
-        // Let's make Stage 0 be perfect 100 for "Start", then immediately drop to 1.
 
-        if (this.currentSanity < 100) newLevel = 1;
-        if (this.currentSanity <= 80) newLevel = 2;
-        if (this.currentSanity <= 60) newLevel = 3;
-        if (this.currentSanity <= 40) newLevel = 4;
-        if (this.currentSanity <= 20) newLevel = 5;
-        if (this.currentSanity < 10) newLevel = 6;
+        if (currentSanity < 100) newLevel = 1;
+        if (currentSanity <= 80) newLevel = 2;
+        if (currentSanity <= 60) newLevel = 3;
+        if (currentSanity <= 40) newLevel = 4;
+        if (currentSanity <= 20) newLevel = 5;
+        if (currentSanity < 10) newLevel = 6;
 
-        // Visual effects trigger only on level change
-        if (newLevel !== this.currentLevel) {
-            console.log(`Sanity Level Change: ${this.currentLevel} -> ${newLevel}`);
-            this.currentLevel = newLevel;
-            EffectsEngine.triggerLevel(this.currentLevel);
+        if (newLevel !== pLevel) {
+            // console.log(`P${playerId} Sanity Level Change: ${pLevel} -> ${newLevel}`);
+            this.pState[playerId].level = newLevel;
+            // Effects might need to be player specific? For now global effects trigger if ANYONE goes insane?
+            // Or maybe just screen shake etc.
+            // Let's trigger effects based on the WORST level among players
+            this.syncEffects();
         }
     },
 
-    updateUI() {
-        const fill = document.getElementById('sanity-fill');
-        const text = document.getElementById('sanity-text');
+    syncEffects() {
+        const worstLevel = Math.max(this.pState[0].level, this.pState[1].level);
+        EffectsEngine.triggerLevel(worstLevel);
+    },
+
+    updateUI(playerId) {
+        const fill = document.getElementById(`sanity-fill-p${playerId}`);
+        const text = document.getElementById(`sanity-text-p${playerId}`);
 
         if (fill && text) {
-            fill.style.width = `${this.currentSanity}%`;
+            let s = this.pState[playerId].sanity;
+            fill.style.width = `${s}%`;
 
-            // Color change based on level
-            if (this.currentSanity > 80) {
+            // Color update moved to CSS mostly, but text needs update
+            if (s > 80) {
                 text.innerText = "STABLE";
-                text.style.color = "#00f3ff";
-                fill.style.background = "linear-gradient(90deg, #00f3ff, #bc13fe)";
-            } else if (this.currentSanity > 40) {
+            } else if (s > 40) {
                 text.innerText = "UNSTABLE";
-                text.style.color = "#ffff00";
-                fill.style.background = "linear-gradient(90deg, #ffff00, #ff8800)";
             } else {
                 text.innerText = "CRITICAL";
-                text.style.color = "#ff0055";
-                fill.style.background = "linear-gradient(90deg, #ff0055, #660000)";
             }
         }
     }

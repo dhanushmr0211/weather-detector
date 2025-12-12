@@ -73,25 +73,20 @@ body {
 .top-bar {
     position: absolute;
     top: 20px;
-    right: 20px;
-    left: auto;
-    /* Remove centering */
-    transform: none;
-    /* Remove centering */
+    left: 50%;
+    /* Center again for Split Screen */
+    transform: translateX(-50%);
     display: flex;
-    flex-direction: row-reverse;
-    /* Put elements side by side if needed, or just row */
-    align-items: flex-start;
-    gap: 20px;
-    width: auto;
-    /* Shrink to fit */
-    max-width: 600px;
+    flex-direction: row;
+    /* Side by side */
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+    width: 95%;
+    max-width: 900px;
     pointer-events: auto;
-    /* Move camera inside here if needed implicitly or handle absolute overlap */
-    /* Since camera is absolute right:20, and this is now right:20, they might stack */
-    /* Let's align top bar to left of camera or just use right: 160px to clear camera? */
-    /* Camera is 120px wide + 20px padding = 140px. Let's give top bar right: 160px */
-    right: 160px;
+    right: auto;
+    /* reset from previous change */
 }
 
 .sanity-wrapper {
@@ -129,20 +124,36 @@ body {
     transition: width 0.3s ease, background 0.3s ease;
 }
 
+/* Dual Sanity Styles */
+.vs-divider {
+    color: #fff;
+    font-weight: 900;
+    font-size: 1.5rem;
+    text-shadow: 0 0 10px #fff;
+    font-style: italic;
+    margin: 0 10px;
+}
+
+.p1-sanity .sanity-fill {
+    background: linear-gradient(90deg, #00f3ff, #0088cc);
+    box-shadow: 0 0 10px #00f3ff;
+}
+
+.p2-sanity .sanity-fill {
+    background: linear-gradient(90deg, #bc13fe, #ff00ff);
+    box-shadow: 0 0 10px #bc13fe;
+}
+
 .status {
     position: relative;
-    /* Ensure it sits on top */
     align-self: flex-end;
-    font-size: 1.5rem;
+    font-size: 1.2rem;
+    /* Reduce slightly for dual view */
     font-weight: 800;
     color: #fff !important;
-    /* Override JS color */
     text-shadow: 0 0 5px #000;
-    /* Dark shadow for contrast against bar */
     z-index: 200;
-    /* High z-index */
     background: rgba(0, 0, 0, 0.5);
-    /* Semi-transparent box */
     padding: 2px 8px;
     border-radius: 4px;
 }

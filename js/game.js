@@ -5,17 +5,21 @@ const Game = {
     width: 0,
     height: 0,
     score: 0,
+    timeLeft: 20, // 20s survival timer
 
     // Game Entities
-    player: { x: 0, y: 0, width: 40, height: 40, speed: 8 },
+    players: [],
     obstacles: [],
-    keys: { ArrowLeft: false, ArrowRight: false },
+    keys: {},
 
     // Configuration
     spawnRate: 60, // frames
     frameCount: 0,
     baseObsSpeed: 4,
-    currentEmoji: '😐', // Default Emoji
+    currentEmoji: '😐', // Default generic
+
+    // Player specific state
+    playerEmojis: ['😐', '😐'], // [P1, P2]
 
     init() {
         this.canvas = document.getElementById('game-canvas');
@@ -36,26 +40,46 @@ const Game = {
         this.canvas.width = this.width;
         this.canvas.height = this.height;
 
-        // Reposition player to bottom center
-        this.player.y = this.height - 80;
-        this.player.x = this.width / 2 - this.player.width / 2;
+        this.resetPlayers();
+    },
+
+    resetPlayers() {
+        // Player 0: Left Side (Cyan) - WASD
+        // Player 1: Right Side (Purple) - Arrows
+        this.players = [
+            { id: 0, x: this.width * 0.25, y: this.height - 80, width: 40, height: 40, color: '#00f3ff', speed: 8 },
+            { id: 1, x: this.width * 0.75, y: this.height - 80, width: 40, height: 40, color: '#bc13fe', speed: 8 }
+        ];
     },
 
     start() {
         if (this.isRunning) return;
         this.isRunning = true;
         this.score = 0;
+        this.timeLeft = 20; // Reset timer
         this.obstacles = [];
         this.spawnRate = 60;
         this.baseObsSpeed = 4;
+        this.frameCount = 0;
 
+        this.resetPlayers();
         SanitySystem.init();
         EffectsEngine.init();
 
         // Sanity Decay over time
         this.sanityInterval = setInterval(() => {
-            if (this.isRunning) SanitySystem.reduceSanity(1);
-        }, 1000); // Lose 1 sanity per second naturally
+            if (this.isRunning) {
+                // Decay both players slowly
+                SanitySystem.reduceSanity(1, 0);
+                SanitySystem.reduceSanity(1, 1);
+
+                // Timer Countdown
+                this.timeLeft--;
+                if (this.timeLeft <= 0) {
+                    this.gameWin();
+                }
+            }
+        }, 1000);
 
         this.loop();
     },
@@ -65,10 +89,10 @@ const Game = {
         clearInterval(this.sanityInterval);
     },
 
-    gameOver() {
+    gameOver(loserId) {
         this.stop();
 
-        // Dynamic Game Over Text based on "Mood"
+        // Dynamic Game Over Text
         const titles = [
             "SYSTEM FAILURE",
             "EMOTIONAL OVERLOAD",
@@ -79,15 +103,32 @@ const Game = {
 
         const titleEl = document.querySelector('#game-over-screen h1');
         if (titleEl) {
-            titleEl.innerText = randomTitle;
-            titleEl.setAttribute('data-text', randomTitle);
+            let msg = randomTitle;
+            if (loserId !== undefined) {
+                msg = `PLAYER ${loserId + 1} BROKE`;
+            }
+            titleEl.innerText = msg;
+            titleEl.setAttribute('data-text', msg);
         }
 
-        // Show Game Over UI
-        const finalScoreEl = document.getElementById('final-score');
-        if (finalScoreEl) {
-            finalScoreEl.innerText = Math.floor(this.score);
+        const scoreEl = document.getElementById('final-score');
+        if (scoreEl) scoreEl.innerText = Math.floor(this.score);
+
+        const screen = document.getElementById('game-over-screen');
+        screen.classList.remove('hidden');
+        screen.classList.add('active');
+    },
+
+    gameWin() {
+        this.stop();
+        const titleEl = document.querySelector('#game-over-screen h1');
+        if (titleEl) {
+            titleEl.innerText = "NEURAL LINK STABLE";
+            titleEl.setAttribute('data-text', "SURVIVED");
         }
+
+        const scoreEl = document.getElementById('final-score');
+        if (scoreEl) scoreEl.innerText = Math.floor(this.score);
 
         const screen = document.getElementById('game-over-screen');
         screen.classList.remove('hidden');
@@ -96,6 +137,7 @@ const Game = {
 
     reset() {
         this.score = 0;
+        this.timeLeft = 20;
         SanitySystem.init();
     },
 
@@ -112,110 +154,113 @@ const Game = {
         this.frameCount++;
         this.score += 0.1;
 
-        // Player Movement
-        let movement = 0;
-        let baseSpeed = this.player.speed;
+        // --- PLAYER UPDATES ---
+        this.players.forEach(p => {
+            // Speed modifiers based on THEIR sanity level
+            let level = SanitySystem.pState[p.id].level;
+            let speed = p.speed;
 
-        // Stage 3 Modifiers: Slippery feel (inertia?) or just faster/erratic? 
-        // Spec says "Player movement feels 'slippery'". Implementation: delayed stop or lower friction.
-        // For simple arcade, maybe just higher speed makes it feel slippy/uncontrollable or drift.
-        if (SanitySystem.currentLevel >= 3) {
-            // Slippery: add momentum? For now, we'll just keep it responsive but maybe add drift?
-            // "controls feel slippery" -> usually means low friction.
-            // Let's implement simple momentum in a future polish if needed, for now just changing speed/response.
-            baseSpeed = 10;
-        }
+            if (level >= 3) speed = 10; // Slippery/Fast
 
-        let direction = 0;
-        if (this.keys['ArrowLeft']) direction = -1;
-        if (this.keys['ArrowRight']) direction = 1;
+            let direction = 0;
+            if (p.id === 0) { // P1 WASD
+                if (this.keys['KeyA']) direction = -1;
+                if (this.keys['KeyD']) direction = 1;
+            } else { // P2 Arrows
+                if (this.keys['ArrowLeft']) direction = -1;
+                if (this.keys['ArrowRight']) direction = 1;
+            }
 
-        // Stage 6: Reverse Controls
-        if (SanitySystem.currentLevel >= 6) {
-            direction *= -1;
-        }
+            if (level >= 6) direction *= -1; // Reverse Controls
 
-        movement = direction * baseSpeed;
+            let movement = direction * speed;
 
-        // Stage 6: Uncontrollable sliding
-        if (SanitySystem.currentLevel >= 6 && Math.random() > 0.9) {
-            movement += (Math.random() * 20 - 10);
-        }
+            // Chaos slide
+            if (level >= 6 && Math.random() > 0.9) {
+                movement += (Math.random() * 20 - 10);
+            }
 
-        this.player.x += movement;
+            p.x += movement;
 
-        // Boundaries
-        if (this.player.x < 0) this.player.x = 0;
-        if (this.player.x + this.player.width > this.width) this.player.x = this.width - this.player.width;
+            // Boundaries (Split Screen)
+            if (p.id === 0) {
+                // Player 1 confined to Left Half (0 to width/2)
+                if (p.x < 0) p.x = 0;
+                if (p.x + p.width > this.width / 2) p.x = this.width / 2 - p.width;
+            } else {
+                // Player 2 confined to Right Half (width/2 to width)
+                if (p.x < this.width / 2) p.x = this.width / 2;
+                if (p.x + p.width > this.width) p.x = this.width - p.width;
+            }
+        });
 
-        // Spawning Obstacles
-        let currentSpawnRate = this.spawnRate;
-        if (SanitySystem.currentLevel >= 2) currentSpawnRate = 50;
-        if (SanitySystem.currentLevel >= 3) currentSpawnRate = 40;
-        if (SanitySystem.currentLevel >= 5) currentSpawnRate = 20; // 3 spawns/sec
-        if (SanitySystem.currentLevel >= 6) currentSpawnRate = 10; // Chaos
 
-        // Stage 5 & 6: Multiple spawns
-        let spawnCount = 1;
-        if (SanitySystem.currentLevel >= 5) spawnCount = 2;
-        if (SanitySystem.currentLevel >= 6) spawnCount = 3;
+        // --- OBSTACLE SPAWNING ---
+        // Global spawn rate logic
+        let baseRate = this.spawnRate; // 60
 
-        // Anger Mode Override
-        if (this.isAngryMode) {
-            currentSpawnRate = 10; // Rapid fire
-            spawnCount = 2;
-        }
+        // Spawn for each player independently
+        [0, 1].forEach(pid => {
+            let level = SanitySystem.pState[pid].level;
 
-        if (this.frameCount % currentSpawnRate === 0) {
-            for (let k = 0; k < spawnCount; k++) this.spawnObstacle();
-        }
+            let currentRate = baseRate;
+            if (level >= 2) currentRate = 50;
+            if (level >= 3) currentRate = 40;
+            if (level >= 5) currentRate = 20;
+            if (level >= 6) currentRate = 10;
 
-        // Update Obstacles
+            if (this.frameCount % currentRate === 0) {
+                let count = (level >= 5) ? 2 : 1;
+                for (let k = 0; k < count; k++) this.spawnObstacle(pid);
+            }
+        });
+
+        // --- UPDATE OBSTACLES ---
         for (let i = 0; i < this.obstacles.length; i++) {
             let obs = this.obstacles[i];
 
-            // Standard fall
+            // Logic based on TARGET PLAYER'S sanity level
+            let targetP = this.players[obs.targetPlayerId];
+            let level = SanitySystem.pState[obs.targetPlayerId]?.level || 0;
+
             let speed = obs.speed;
+            if (level >= 2) speed *= 1.2;
+            if (level >= 4) speed *= 1.5;
 
-            // Stage 2+: Falls faster
-            if (SanitySystem.currentLevel >= 2) speed *= 1.2;
-            if (SanitySystem.currentLevel >= 4) speed *= 1.5;
-            if (SanitySystem.currentLevel >= 5) speed *= 2.0;
-
-            // Stage 6: Diagonal / Chaotic Fall
-            if (SanitySystem.currentLevel >= 6) {
-                obs.x += (Math.random() - 0.5) * 10; // Jitter x
-                speed *= 1.2 + Math.random(); // Random speed changes
+            if (level >= 6) {
+                obs.x += (Math.random() - 0.5) * 10;
+                speed *= 1.2 + Math.random();
             }
 
-            obs.y += speed;
-
-            // Stage 3+: Horizontal Drift
-            if (SanitySystem.currentLevel >= 3 && SanitySystem.currentLevel < 6) {
+            // Horizontal Drift
+            if (level >= 3 && level < 6) {
                 obs.x += Math.sin(obs.y * 0.05 + this.frameCount * 0.1) * 3;
             }
 
-            // Stage 4: Duplicate mid-air
-            if (SanitySystem.currentLevel >= 4 && obs.y > this.height * 0.3 && !obs.hasDuplicated && Math.random() > 0.98) {
+            // Stage 4: Duplicate
+            if (level >= 4 && obs.y > this.height * 0.3 && !obs.hasDuplicated && Math.random() > 0.98) {
+                // Duplicate must respect bounds!
+                // Simple shift, but clamp it if needed?
                 this.obstacles.push({ ...obs, x: obs.x + 40, hasDuplicated: true });
                 obs.hasDuplicated = true;
             }
 
-            // Collision
+            obs.y += speed;
+
+            // Collision Check (Only with target player?)
+            // Yes, obstacles in P1 zone hit P1.
             if (
-                obs.x < this.player.x + this.player.width &&
-                obs.x + obs.width > this.player.x &&
-                obs.y < this.player.y + this.player.height &&
-                obs.y + obs.height > this.player.y
+                obs.x < targetP.x + targetP.width &&
+                obs.x + obs.width > targetP.x &&
+                obs.y < targetP.y + targetP.height &&
+                obs.y + obs.height > targetP.y
             ) {
-                // Hit!
-                this.handleCollision(obs);
+                this.handleCollision(obs, targetP);
                 this.obstacles.splice(i, 1);
                 i--;
                 continue;
             }
 
-            // Cleanup
             if (obs.y > this.height) {
                 this.obstacles.splice(i, 1);
                 i--;
@@ -223,43 +268,59 @@ const Game = {
         }
     },
 
-    spawnObstacle() {
+    spawnObstacle(playerId) {
         const size = 30 + Math.random() * 30;
+
+        // Determine Bounds based on Player ID
+        // P1: 0 to width/2
+        // P2: width/2 to width
+        let minX = (playerId === 0) ? 0 : this.width / 2;
+        let maxX = (playerId === 0) ? this.width / 2 : this.width;
+
+        // Spawn
+        let x = minX + Math.random() * (maxX - minX - size);
+
+        // Get emoji from Player's Face State
+        let emoji = this.playerEmojis[playerId] || '😐';
+
         this.obstacles.push({
-            x: Math.random() * (this.width - size),
+            x: x,
             y: -size,
             width: size,
             height: size,
             speed: this.baseObsSpeed + Math.random() * 2,
-            color: '#ff0055', // Legacy color fallback
-            emoji: this.currentEmoji,
+            emoji: emoji,
+            targetPlayerId: playerId, // Important: Track owner
             hasDuplicated: false
         });
     },
 
     setEmoji(newEmoji) {
-        if (this.currentEmoji !== newEmoji) {
-            this.currentEmoji = newEmoji;
-            // Update all existing obstacles to match immediately
-            for (let obs of this.obstacles) {
-                obs.emoji = newEmoji;
-            }
+        // Legacy fallback
+        this.currentEmoji = newEmoji;
+    },
+
+    // Called by EmotionEngine
+    updatePlayerStatus(playerId, emotion) {
+        const emojiMap = {
+            neutral: '😐', angry: '😡', sad: '😢', fear: '😱',
+            disgust: '🤢', surprised: '😲', happy: '😁'
+        };
+        // Safety check
+        if (this.playerEmojis[playerId] !== undefined) {
+            this.playerEmojis[playerId] = emojiMap[emotion] || '😐';
         }
     },
 
-    handleCollision(obs) {
-        // Define Emoji Categories
+    handleCollision(obs, player) {
         const healingEmojis = ['😡', '🤬', '💢', '🔥', '😢', '😭', '💧', '💔', '😱', '😨', '👁️', '⚡', '🤢', '🤮', '🦠', '🧟', '😲', '🤯', '💥', '❗'];
-        // Note: We check if it INCLUDES the emoji, or just is one of them.
 
         if (healingEmojis.includes(obs.emoji)) {
-            // CATCHING BAD VIBES -> HEAL
-            SanitySystem.increaseSanity(25); // Increased from 15 to 25
+            SanitySystem.increaseSanity(25, player.id);
             EffectsEngine.showPopup("CATHARSIS +25");
         } else {
-            // HITTING GOOD VIBES / NEUTRAL -> HURT (Toxic Positivity)
+            SanitySystem.reduceSanity(10, player.id);
             EffectsEngine.shakeScreen();
-            SanitySystem.reduceSanity(10);
         }
     },
 
@@ -267,34 +328,41 @@ const Game = {
         // Clear Canvas
         this.ctx.clearRect(0, 0, this.width, this.height);
 
-        // Draw Player
-        this.ctx.fillStyle = '#00f3ff';
-        this.ctx.shadowBlur = 20;
-        this.ctx.shadowColor = '#00f3ff';
-        this.ctx.fillRect(this.player.x, this.player.y, this.player.width, this.player.height);
+        // Draw Divider
+        this.ctx.save();
+        this.ctx.beginPath();
+        this.ctx.lineWidth = 4;
+        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+        this.ctx.setLineDash([10, 10]);
+        this.ctx.moveTo(this.width / 2, 0);
+        this.ctx.lineTo(this.width / 2, this.height);
+        this.ctx.stroke();
+        this.ctx.restore();
+
+        // Draw Players
+        this.players.forEach(p => {
+            this.ctx.fillStyle = p.color;
+            this.ctx.shadowBlur = 20;
+            this.ctx.shadowColor = p.color;
+            this.ctx.fillRect(p.x, p.y, p.width, p.height);
+        });
         this.ctx.shadowBlur = 0;
 
         // Draw Obstacles
-        this.ctx.font = "30px Arial"; // Base font size
         this.ctx.textAlign = "center";
         this.ctx.textBaseline = "middle";
 
         for (let obs of this.obstacles) {
-            // Insanity Effect: Flickering or changing colors (still applies to text color if needed, but emoji uses native color)
-            // Just apply global alpha flicker maybe?
-            if (SanitySystem.currentLevel >= 1 && Math.random() > 0.8) {
+            let pLevel = SanitySystem.pState[obs.targetPlayerId]?.level || 0;
+
+            if (pLevel >= 1 && Math.random() > 0.8) {
                 this.ctx.globalAlpha = 0.5;
             } else {
                 this.ctx.globalAlpha = 1.0;
             }
 
-            // Draw Emoji
-            // Adjust font size to obstacle width
             this.ctx.font = `${obs.width}px serif`;
             this.ctx.fillText(obs.emoji, obs.x + obs.width / 2, obs.y + obs.height / 2);
-
-            // Debug hit box/fallback
-            // this.ctx.strokeRect(obs.x, obs.y, obs.width, obs.height);
         }
         this.ctx.globalAlpha = 1.0;
 
@@ -304,43 +372,18 @@ const Game = {
         this.ctx.textAlign = 'center';
         this.ctx.shadowBlur = 10;
         this.ctx.shadowColor = '#ff0055';
-        this.ctx.fillText(this.timeLeft, this.width / 2, 50);
+        this.ctx.fillText(this.timeLeft, this.width / 2, 60);
 
         // Draw Score (Mini)
         this.ctx.fillStyle = '#fff';
         this.ctx.font = '20px "Inter", sans-serif';
-        this.ctx.fillText(`Score: ${this.score}`, this.width / 2, 80);
+        this.ctx.fillText(`Score: ${Math.floor(this.score)}`, this.width / 2, 90);
         this.ctx.shadowBlur = 0;
     },
 
-    // For Anger Emotion
-    triggerSpeedBoost() {
-        if (this.isAngryMode) return;
-        this.isAngryMode = true;
-
-        const originalSpeed = this.baseObsSpeed;
-        this.baseObsSpeed *= 3; // Super speed
-
-        // Immediate Burst
-        for (let i = 0; i < 5; i++) this.spawnObstacle();
-
-        setTimeout(() => {
-            if (this.isRunning) {
-                this.baseObsSpeed = originalSpeed;
-                this.isAngryMode = false;
-            }
-        }, 2000); // 2 seconds of rage
-    },
-
-    // For Surprise Emotion
-    teleportObstacles() {
-        for (let obs of this.obstacles) {
-            if (Math.random() > 0.5) {
-                obs.x = Math.random() * (this.width - obs.width);
-                obs.y += (Math.random() * 100 - 50); // Jump up or down
-            }
-        }
-    }
+    // Legacy method stubs if called by effects
+    triggerSpeedBoost() { /* No-op for now or reimplement for specific player? */ },
+    teleportObstacles() { /* Reimplements if needed */ }
 };
 
 window.Game = Game;
