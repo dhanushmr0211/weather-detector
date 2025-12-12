@@ -1,0 +1,257 @@
+:root {
+    --bg-color: #0b0c15;
+    --accent-primary: #00f3ff;
+    /* Cyan Neon */
+    --accent-secondary: #bc13fe;
+    /* Purple Neon */
+    --accent-warning: #ff0055;
+    /* Red Neon */
+    --glass-bg: rgba(255, 255, 255, 0.05);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --text-main: #ffffff;
+    --text-muted: #8b9bb4;
+    --font-heading: 'Outfit', sans-serif;
+    --font-body: 'Inter', sans-serif;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-main);
+    font-family: var(--font-body);
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+}
+
+#game-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Dynamic Background */
+.bg-gradient {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle at 50% 50%, #1a1b2e 0%, #0b0c15 100%);
+    z-index: -1;
+}
+
+/* Canvas */
+#game-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 10;
+}
+
+/* UI Layer */
+#ui-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 100;
+    pointer-events: none;
+    /* Let clicks pass through to canvas if needed */
+}
+
+/* Top Bar */
+.top-bar {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    left: auto;
+    /* Remove centering */
+    transform: none;
+    /* Remove centering */
+    display: flex;
+    flex-direction: row-reverse;
+    /* Put elements side by side if needed, or just row */
+    align-items: flex-start;
+    gap: 20px;
+    width: auto;
+    /* Shrink to fit */
+    max-width: 600px;
+    pointer-events: auto;
+    /* Move camera inside here if needed implicitly or handle absolute overlap */
+    /* Since camera is absolute right:20, and this is now right:20, they might stack */
+    /* Let's align top bar to left of camera or just use right: 160px to clear camera? */
+    /* Camera is 120px wide + 20px padding = 140px. Let's give top bar right: 160px */
+    right: 160px;
+}
+
+.sanity-wrapper {
+    flex: 1;
+    background: var(--glass-bg);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--glass-border);
+    padding: 15px 25px;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    box-shadow: 0 0 20px rgba(0, 243, 255, 0.1);
+}
+
+.label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+}
+
+.sanity-bar-container {
+    width: 100%;
+    height: 10px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+.sanity-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+    box-shadow: 0 0 10px var(--accent-primary);
+    transition: width 0.3s ease, background 0.3s ease;
+}
+
+.status {
+    position: relative;
+    /* Ensure it sits on top */
+    align-self: flex-end;
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #fff !important;
+    /* Override JS color */
+    text-shadow: 0 0 5px #000;
+    /* Dark shadow for contrast against bar */
+    z-index: 200;
+    /* High z-index */
+    background: rgba(0, 0, 0, 0.5);
+    /* Semi-transparent box */
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+/* Overlays */
+.overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(11, 12, 21, 0.85);
+    backdrop-filter: blur(20px);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.5s ease;
+    z-index: 200;
+}
+
+.overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.overlay.hidden {
+    display: none;
+}
+
+h1 {
+    font-family: var(--font-heading);
+    font-size: 4rem;
+    font-weight: 900;
+    text-shadow: 0 0 20px rgba(0, 243, 255, 0.5);
+    letter-spacing: -2px;
+    text-transform: uppercase;
+}
+
+.subtitle {
+    color: var(--text-muted);
+    font-size: 1.2rem;
+    letter-spacing: 5px;
+    margin-bottom: 20px;
+}
+
+/* Camera Preview */
+.camera-preview {
+    position: relative;
+    width: 200px;
+    height: 150px;
+    background: #000;
+    border: 2px solid var(--glass-border);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+#webcam-feed {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transform: scaleX(-1);
+    /* Mirror effect */
+}
+
+/* Button Styling */
+button {
+    background: transparent;
+    border: 1px solid var(--accent-primary);
+    color: var(--accent-primary);
+    padding: 15px 40px;
+    font-family: var(--font-heading);
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-transform: uppercase;
+    position: relative;
+    overflow: hidden;
+}
+
+button:hover {
+    background: var(--accent-primary);
+    color: #000;
+    box-shadow: 0 0 30px rgba(0, 243, 255, 0.4);
+}
+
+button:disabled {
+    border-color: var(--text-muted);
+    color: var(--text-muted);
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+/* Insanity Popups */
+.insanity-popup {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-family: 'Courier New', monospace;
+    font-size: 3rem;
+    color: red;
+    font-weight: bold;
+    text-shadow: 2px 2px 0px #000;
+    z-index: 150;
+    pointer-events: none;
+}

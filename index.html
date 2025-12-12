@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emotionally Unstable Dodge Game</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Outfit:wght@300;500;800&display=swap"
+        rel="stylesheet">
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/insanity.css">
+    <link rel="stylesheet" href="css/hud.css">
+
+    <!-- Face API -->
+    <!-- Face API (Removed) -->
+</head>
+
+<body>
+
+    <div id="game-container">
+        <!-- Background Elements -->
+        <div class="bg-gradient"></div>
+        <div class="particles" id="particles"></div>
+
+        <!-- UI Overlay -->
+        <div id="ui-layer">
+            <!-- Top Bar (Sanity) -->
+            <div class="top-bar">
+                <div class="sanity-wrapper">
+                    <span class="label">SANITY LEVELS</span>
+                    <div class="sanity-bar-container">
+                        <div id="sanity-fill" class="sanity-fill" style="width: 100%;"></div>
+                    </div>
+                    <span id="sanity-text" class="status">STABLE</span>
+                </div>
+            </div>
+
+            <!-- Persistent Camera HUD (Moved to Top Left) -->
+            <div id="neural-hud" class="neural-hud">
+                <div class="camera-preview-mini">
+                    <video id="webcam-feed" autoplay muted playsinline></video>
+                    <div class="scan-line"></div>
+                </div>
+                <!-- Status text removed as requested, keeping container if needed for absolute pos -->
+                <div id="camera-status" class="camera-status-mini">Neural Link Active</div>
+            </div>
+
+            <!-- Start Screen -->
+            <div id="start-screen" class="overlay active">
+                <h1 class="glitch-text" data-text="E.U.D.G">E.U.D.G</h1>
+                <p class="subtitle">Emotionally Unstable Dodge Game</p>
+
+                <button id="start-btn" disabled>INITIALIZE NEURAL LINK</button>
+            </div>
+
+            <!-- Put this in index.html near camera-status -->
+            <!-- Calibration Panel Removed -->
+
+
+            <!-- Game Over Screen -->
+            <div id="game-over-screen" class="overlay hidden">
+                <h1 class="glitch-text" data-text="SYSTEM FAILURE">SYSTEM FAILURE</h1>
+                <p>Sanity Depleted.</p>
+                <p>Score: <span id="final-score">0</span></p>
+                <button id="restart-btn">REBOOT SYSTEM</button>
+            </div>
+
+            <!-- In-Game Popups -->
+            <div id="insanity-popup" class="insanity-popup hidden">I'M WATCHING YOU</div>
+        </div>
+
+        <!-- Game Canvas -->
+        <canvas id="game-canvas"></canvas>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/sanity.js"></script>
+    <script src="js/effects.js"></script>
+    <script src="js/game.js"></script>
+    <script type="module" src="js/emotion.js"></script>
+    <script type="module" src="js/main.js"></script>
+
+</body>
+
+</html>

@@ -1,0 +1,64 @@
+/* Neural HUD (Camera + Status) */
+.neural-hud {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    /* Moved to Left */
+    /* right: 20px; Removed */
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    /* Align Left */
+    pointer-events: none;
+    z-index: 1000;
+}
+
+.camera-preview-mini {
+    width: 120px;
+    /* Smaller during game */
+    height: 90px;
+    border: 2px solid var(--neon-cyan);
+    border-radius: 8px;
+    position: relative;
+    overflow: hidden;
+    background: #000;
+    box-shadow: 0 0 10px var(--neon-cyan);
+    transition: all 0.3s ease;
+}
+
+.camera-preview-mini video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transform: scaleX(-1);
+    /* Mirror */
+}
+
+/* Debug text styling */
+.camera-status-mini {
+    margin-top: 8px;
+    font-size: 10px;
+    color: var(--neon-cyan);
+    font-family: 'Courier New', Courier, monospace;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 4px 8px;
+    border-radius: 4px;
+    border: 1px solid var(--neon-cyan);
+    max-width: 150px;
+    text-align: right;
+    white-space: pre-wrap;
+    text-shadow: 0 0 2px var(--neon-cyan);
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+    .neural-hud {
+        top: 10px;
+        right: 10px;
+    }
+
+    .camera-preview-mini {
+        width: 80px;
+        height: 60px;
+    }
+}
