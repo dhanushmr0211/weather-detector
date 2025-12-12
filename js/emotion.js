@@ -165,7 +165,7 @@ const EmotionEngine = {
         // Adjust these thresholds to tune sensitivity!
         const THRESHOLDS = {
             happy: 0.4,
-            angry: 0.45, // Lowered from 0.55 to 0.45 for better responsiveness
+            angry: 0.40, // Fine-tuning: 0.45 was too hard, 0.35 was too easy. Trying 0.40.
             surprised: 0.3,
             sad: 0.35,
             fear: 0.3,
