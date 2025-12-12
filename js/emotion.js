@@ -165,7 +165,7 @@ const EmotionEngine = {
         // Adjust these thresholds to tune sensitivity!
         const THRESHOLDS = {
             happy: 0.4,
-            angry: 0.35,
+            angry: 0.45, // Lowered from 0.55 to 0.45 for better responsiveness
             surprised: 0.3,
             sad: 0.35,
             fear: 0.3,
@@ -201,7 +201,7 @@ const EmotionEngine = {
         }
     },
 
-    triggerEmotionEffect(emotion, confidence) {
+    triggerEmotionEffect(emotion, confidence, playerIndex) {
         // Stop effects if game hasn't started
         if (!Game || !Game.isRunning) return;
 
@@ -215,10 +215,10 @@ const EmotionEngine = {
         }
 
         if (emotion === 'happy') {
-            SanitySystem.increaseSanity(5);
+            SanitySystem.increaseSanity(5, playerIndex);
         } else {
             const drop = this.emotionWeights[emotion] || 0;
-            if (drop > 0) SanitySystem.reduceSanity(drop);
+            if (drop > 0) SanitySystem.reduceSanity(drop, playerIndex);
         }
 
         const emojiMap = {

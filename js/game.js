@@ -47,8 +47,8 @@ const Game = {
         // Player 0: Left Side (Cyan) - WASD
         // Player 1: Right Side (Purple) - Arrows
         this.players = [
-            { id: 0, x: this.width * 0.25, y: this.height - 80, width: 40, height: 40, color: '#00f3ff', speed: 8 },
-            { id: 1, x: this.width * 0.75, y: this.height - 80, width: 40, height: 40, color: '#bc13fe', speed: 8 }
+            { id: 0, x: this.width * 0.25, y: this.height - 80, width: 40, height: 40, color: '#00f3ff', speed: 8, score: 0 },
+            { id: 1, x: this.width * 0.75, y: this.height - 80, width: 40, height: 40, color: '#bc13fe', speed: 8, score: 0 }
         ];
     },
 
@@ -92,27 +92,28 @@ const Game = {
     gameOver(loserId) {
         this.stop();
 
-        // Dynamic Game Over Text
-        const titles = [
-            "SYSTEM FAILURE",
-            "EMOTIONAL OVERLOAD",
-            "SANITY DEPLETED",
-            "REALITY FRACTURED"
-        ];
-        const randomTitle = titles[Math.floor(Math.random() * titles.length)];
+        // Determine Winner
+        let winnerId = (loserId === 0) ? 1 : 0;
+        let winnerScore = Math.floor(this.players[winnerId].score);
 
+        // Dynamic Game Over Text
         const titleEl = document.querySelector('#game-over-screen h1');
         if (titleEl) {
-            let msg = randomTitle;
-            if (loserId !== undefined) {
-                msg = `PLAYER ${loserId + 1} BROKE`;
-            }
+            let msg = `PLAYER ${loserId + 1} CRASHED`;
             titleEl.innerText = msg;
             titleEl.setAttribute('data-text', msg);
         }
 
         const scoreEl = document.getElementById('final-score');
-        if (scoreEl) scoreEl.innerText = Math.floor(this.score);
+        if (scoreEl) {
+            // Show Winner Info
+            scoreEl.innerHTML = `WINNER: <span style="color:${winnerId === 0 ? '#00f3ff' : '#bc13fe'}">PLAYER ${winnerId + 1}</span><br>Score: ${winnerScore}`;
+        }
+
+        // Hide restart button text change? Or just keep "REBOOT SYSTEM"
+        // Maybe change subtitle
+        const subEl = document.querySelector('#game-over-screen p:nth-child(2)');
+        if (subEl) subEl.innerText = `Player ${winnerId + 1} maintained stability.`;
 
         const screen = document.getElementById('game-over-screen');
         screen.classList.remove('hidden');
@@ -152,7 +153,7 @@ const Game = {
 
     update() {
         this.frameCount++;
-        this.score += 0.1;
+        // this.score += 0.1; // Removed global score
 
         // --- PLAYER UPDATES ---
         this.players.forEach(p => {
@@ -192,6 +193,9 @@ const Game = {
                 if (p.x < this.width / 2) p.x = this.width / 2;
                 if (p.x + p.width > this.width) p.x = this.width - p.width;
             }
+
+            // Increment Per-Player Score
+            p.score += 0.1;
         });
 
 
@@ -247,6 +251,19 @@ const Game = {
 
             obs.y += speed;
 
+            // Strict Boundary Enforcement (Prevent Mixing)
+            const GAP = 20;
+
+            if (obs.targetPlayerId === 0) {
+                // Keep P1 (Left) obstacles on the left (minus gap)
+                if (obs.x < 0) obs.x = 0;
+                if (obs.x + obs.width > (this.width / 2) - GAP) obs.x = (this.width / 2) - GAP - obs.width;
+            } else {
+                // Keep P2 (Right) obstacles on the right (plus gap)
+                if (obs.x < (this.width / 2) + GAP) obs.x = (this.width / 2) + GAP;
+                if (obs.x + obs.width > this.width) obs.x = this.width - obs.width;
+            }
+
             // Collision Check (Only with target player?)
             // Yes, obstacles in P1 zone hit P1.
             if (
@@ -271,13 +288,25 @@ const Game = {
     spawnObstacle(playerId) {
         const size = 30 + Math.random() * 30;
 
-        // Determine Bounds based on Player ID
-        // P1: 0 to width/2
-        // P2: width/2 to width
-        let minX = (playerId === 0) ? 0 : this.width / 2;
-        let maxX = (playerId === 0) ? this.width / 2 : this.width;
+        // Determine Bounds based on Player ID with GAP
+        // Gap of 40px total (20px each side of center)
+        const GAP = 20;
+        let minX, maxX;
+
+        if (playerId === 0) {
+            // P1: 0 to Center - Gap
+            minX = 0;
+            maxX = (this.width / 2) - GAP;
+        } else {
+            // P2: Center + Gap to Width
+            minX = (this.width / 2) + GAP;
+            maxX = this.width;
+        }
 
         // Spawn
+        // Ensure maxX > minX just in case window is tiny
+        if (maxX <= minX) return;
+
         let x = minX + Math.random() * (maxX - minX - size);
 
         // Get emoji from Player's Face State
@@ -374,10 +403,17 @@ const Game = {
         this.ctx.shadowColor = '#ff0055';
         this.ctx.fillText(this.timeLeft, this.width / 2, 60);
 
-        // Draw Score (Mini)
-        this.ctx.fillStyle = '#fff';
+        // Draw Score (Mini) - Split
         this.ctx.font = '20px "Inter", sans-serif';
-        this.ctx.fillText(`Score: ${Math.floor(this.score)}`, this.width / 2, 90);
+
+        // P1 Score (Left)
+        this.ctx.fillStyle = '#00f3ff';
+        this.ctx.fillText(`Score: ${Math.floor(this.players[0].score)}`, this.width * 0.25, 90);
+
+        // P2 Score (Right)
+        this.ctx.fillStyle = '#bc13fe';
+        this.ctx.fillText(`Score: ${Math.floor(this.players[1].score)}`, this.width * 0.75, 90);
+
         this.ctx.shadowBlur = 0;
     },
 
